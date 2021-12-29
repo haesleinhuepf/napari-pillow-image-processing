@@ -19,13 +19,7 @@ This [napari] plugin was generated with [Cookiecutter] using [@napari]'s [cookie
 
 ## Installation
 
-You can install `napari-pillow-image-processing` via [pip]:
-
-    pip install napari-pillow-image-processing
-
-
-
-To install latest development version :
+You can install `napari-pillow-image-processing` via [pip]
 
     pip install git+https://github.com/haesleinhuepf/napari-pillow-image-processing.git
 
