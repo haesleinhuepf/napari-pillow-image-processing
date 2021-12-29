@@ -5,7 +5,7 @@ from functools import wraps
 from typing import Callable
 import inspect
 from napari_plugin_engine import napari_hook_implementation
-from napari_time_slicer import time_slicer
+from napari_time_slicer import time_slicer, slice_by_slice
 from napari_tools_menu import register_function
 import napari
 
@@ -99,59 +99,12 @@ def plugin_function(
     return worker_function
 
 
-@curry
-def slice_by_slice(function: Callable) -> Callable:
-    @wraps(function)
-    def worker_function(*args, **kwargs):
-        args = list(args)
-        sig = inspect.signature(function)
-        # create mapping from position and keyword arguments to parameters
-        # will raise a TypeError if the provided arguments do not match the signature
-        # https://docs.python.org/3/library/inspect.html#inspect.Signature.bind
-        bound = sig.bind(*args, **kwargs)
-        # set default values for missing arguments
-        # https://docs.python.org/3/library/inspect.html#inspect.BoundArguments.apply_defaults
-        bound.apply_defaults()
-
-        # determine the largest z-stack in the parameter list
-        max_z = 0
-        for key, value in bound.arguments.items():
-            if isinstance(value, np.ndarray) or str(type(value)) in ["<class 'cupy._core.core.ndarray'>",
-                                                                     "<class 'dask.array.core.Array'>"]:
-                if len(value.shape) == 3:
-                    max_z = value.shape[0] - 1
-
-        if max_z == 0:  # no stack in parameter list
-            # just call the decorated function
-            result = function(*bound.args, **bound.kwargs)
-        else:
-            # in case of 3D-data (stack) crop out the current 2D slice
-            slices = []
-            bound_arguments_copy = bound.arguments.copy()
-
-            for z in range(max_z + 1):
-                # replace 3D images with a given slice
-                for key, value in bound_arguments_copy.items():
-                    if isinstance(value, np.ndarray) or str(type(value)) in ["<class 'cupy._core.core.ndarray'>",
-                                                                             "<class 'dask.array.core.Array'>"]:
-                        if len(value.shape) == 3:
-                            z_slice = min(z, value.shape[0] - 1)
-                            image = value[z_slice]
-                            bound.arguments[key] = image
-
-                # call the decorated function
-                slices.append(function(*bound.args, **bound.kwargs))
-            result = np.asarray(slices)
-
-        return result
-
-    return worker_function
 
 @register_function(menu="Filtering / noise removal > Gaussian blur (npil)")
 @time_slicer
 @slice_by_slice
 @plugin_function(convert_input_to_uint8=True)
-def gaussian_blur(image: napari.types.ImageData, standard_deviation: float = 2) -> napari.types.ImageData:
+def gaussian_blur(image: napari.types.ImageData, standard_deviation: float = 2, viewer: napari.Viewer = None) -> napari.types.ImageData:
     """
     Blurs the image with a sequence of extended box filters, which approximates a Gaussian kernel.
     For details on accuracy see [1].
@@ -168,9 +121,10 @@ def gaussian_blur(image: napari.types.ImageData, standard_deviation: float = 2) 
 
 
 @register_function(menu="Filtering / noise removal > Box blur (npil)")
+@time_slicer
 @slice_by_slice
 @plugin_function(convert_input_to_uint8=True)
-def box_blur(image: napari.types.ImageData, radius: int = 2) -> napari.types.ImageData:
+def box_blur(image: napari.types.ImageData, radius: int = 2, viewer: napari.Viewer = None) -> napari.types.ImageData:
     """
     Blurs the image by setting each pixel to the average value of the pixels in a square box extending radius pixels in
     each direction. Supports float radius of arbitrary size. Uses an optimized implementation which runs in linear time
@@ -186,9 +140,10 @@ def box_blur(image: napari.types.ImageData, radius: int = 2) -> napari.types.Ima
 
 
 @register_function(menu="Filtering / edge enhancement > Unsharp mask (npil)")
+@time_slicer
 @slice_by_slice
 @plugin_function(convert_input_to_uint8=True)
-def unsharp_mask(image: napari.types.ImageData, radius: int = 2, percent: int = 150, threshold: int = 3) -> napari.types.ImageData:
+def unsharp_mask(image: napari.types.ImageData, radius: int = 2, percent: int = 150, threshold: int = 3, viewer: napari.Viewer = None) -> napari.types.ImageData:
     """
     Unsharp mask filter.
 
@@ -205,9 +160,10 @@ def unsharp_mask(image: napari.types.ImageData, radius: int = 2, percent: int = 
 
 
 @register_function(menu="Filtering / noise removal > Median filter (npil)")
+@time_slicer
 @slice_by_slice
 @plugin_function
-def median_filter(image: napari.types.ImageData, radius: int = 1) -> napari.types.ImageData:
+def median_filter(image: napari.types.ImageData, radius: int = 1, viewer: napari.Viewer = None) -> napari.types.ImageData:
     """
     Picks the median pixel value in a window with the given size.
 
@@ -226,9 +182,10 @@ def median_filter(image: napari.types.ImageData, radius: int = 1) -> napari.type
 
 
 @register_function(menu="Filtering / noise removal > Minimum filter (npil)")
+@time_slicer
 @slice_by_slice
 @plugin_function
-def minimum_filter(image: napari.types.ImageData, radius: int = 1) -> napari.types.ImageData:
+def minimum_filter(image: napari.types.ImageData, radius: int = 1, viewer: napari.Viewer = None) -> napari.types.ImageData:
     """
     Picks the minimum pixel value in a window with the given size.
 
@@ -247,9 +204,10 @@ def minimum_filter(image: napari.types.ImageData, radius: int = 1) -> napari.typ
 
 
 @register_function(menu="Filtering / noise removal > Maximum filter (npil)")
+@time_slicer
 @slice_by_slice
 @plugin_function
-def maximum_filter(image: napari.types.ImageData, radius: int = 1) -> napari.types.ImageData:
+def maximum_filter(image: napari.types.ImageData, radius: int = 1, viewer: napari.Viewer = None) -> napari.types.ImageData:
     """
     Picks the maximum pixel value in a window with the given size.
 
@@ -268,9 +226,10 @@ def maximum_filter(image: napari.types.ImageData, radius: int = 1) -> napari.typ
 
 
 @register_function(menu="Filtering / noise removal > Mode filter (npil)")
+@time_slicer
 @slice_by_slice
 @plugin_function(convert_input_to_uint8=True)
-def mode_filter(image: napari.types.ImageData, radius: int = 1) -> napari.types.ImageData:
+def mode_filter(image: napari.types.ImageData, radius: int = 1, viewer: napari.Viewer = None) -> napari.types.ImageData:
     """
     Picks the most popular (mode) pixel value in a window with the given size.
 
@@ -289,9 +248,10 @@ def mode_filter(image: napari.types.ImageData, radius: int = 1) -> napari.types.
 
 
 @register_function(menu="Filtering > Auto contrast (npil)")
+@time_slicer
 @slice_by_slice
 @plugin_function(convert_input_to_uint8=True)
-def auto_contrast(image: napari.types.ImageData, cutoff_percent: float = 0) -> napari.types.ImageData:
+def auto_contrast(image: napari.types.ImageData, cutoff_percent: float = 0, viewer: napari.Viewer = None) -> napari.types.ImageData:
     """
     Maximize (normalize) image contrast. This function calculates a histogram of the input image (or mask region),
     removes cutoff percent of the lightest and darkest pixels from the histogram, and remaps the image so that the
@@ -310,9 +270,10 @@ def auto_contrast(image: napari.types.ImageData, cutoff_percent: float = 0) -> n
 
 
 @register_function(menu="Filtering > Equalize histogram bins (npil)")
+@time_slicer
 @slice_by_slice
 @plugin_function(convert_input_to_uint8=True)
-def equalize_histogram_bins(image: napari.types.ImageData) -> napari.types.ImageData:
+def equalize_histogram_bins(image: napari.types.ImageData, viewer: napari.Viewer = None) -> napari.types.ImageData:
     """
     Equalize the image histogram. This function applies a non-linear mapping to the input image, in order to create a
     uniform distribution of grayscale values in the output image.
@@ -333,9 +294,10 @@ def equalize_histogram_bins(image: napari.types.ImageData) -> napari.types.Image
 
 
 @register_function(menu="Filtering > Enhance contrast (npil)")
+@time_slicer
 @slice_by_slice
 @plugin_function(convert_input_to_uint8=True)
-def enhance_contrast(image: napari.types.ImageData, enhancement_factor: float = 1) -> napari.types.ImageData:
+def enhance_contrast(image: napari.types.ImageData, enhancement_factor: float = 1, viewer: napari.Viewer = None) -> napari.types.ImageData:
     """
     This function can be used to control the contrast of an image, similar to the contrast control on a TV set.
     An enhancement factor of 0.0 gives a solid grey image. A factor of 1.0 gives the original image.
@@ -350,9 +312,10 @@ def enhance_contrast(image: napari.types.ImageData, enhancement_factor: float = 
     return enhancer.enhance(enhancement_factor)
 
 @register_function(menu="Filtering > Enhance brightness (npil)")
+@time_slicer
 @slice_by_slice
 @plugin_function(convert_input_to_uint8=True)
-def enhance_brightness(image: napari.types.ImageData, enhancement_factor: float = 1) -> napari.types.ImageData:
+def enhance_brightness(image: napari.types.ImageData, enhancement_factor: float = 1, viewer: napari.Viewer = None) -> napari.types.ImageData:
     """
     This function can be used to control the brightness of an image.
     An enhancement factor of 0.0 gives a black image. A factor of 1.0 gives the original image.
@@ -368,9 +331,10 @@ def enhance_brightness(image: napari.types.ImageData, enhancement_factor: float 
 
 
 @register_function(menu="Filtering > Enhance sharpness (npil)")
+@time_slicer
 @slice_by_slice
 @plugin_function(convert_input_to_uint8=True)
-def enhance_sharpness(image: napari.types.ImageData, enhancement_factor: float = 1) -> napari.types.ImageData:
+def enhance_sharpness(image: napari.types.ImageData, enhancement_factor: float = 1, viewer: napari.Viewer = None) -> napari.types.ImageData:
     """
     This function can be used to adjust the sharpness of an image.
     An enhancement factor of 0.0 gives a blurred image, a factor of 1.0
