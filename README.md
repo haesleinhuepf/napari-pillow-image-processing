@@ -1,4 +1,4 @@
-# napari-pillow-image-processing
+# napari-pillow-image-processing (npil)
 
 [![License](https://img.shields.io/pypi/l/napari-pillow-image-processing.svg?color=green)](https://github.com/haesleinhuepf/napari-pillow-image-processing/raw/main/LICENSE)
 [![PyPI](https://img.shields.io/pypi/v/napari-pillow-image-processing.svg?color=green)](https://pypi.org/project/napari-pillow-image-processing)
@@ -7,19 +7,15 @@
 [![codecov](https://codecov.io/gh/haesleinhuepf/napari-pillow-image-processing/branch/main/graph/badge.svg)](https://codecov.io/gh/haesleinhuepf/napari-pillow-image-processing)
 [![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/napari-pillow-image-processing)](https://napari-hub.org/plugins/napari-pillow-image-processing)
 
-Process images using pillow from within napari
+Process images using pillow from within napari. In the current implementation, only single-channel `uint` 8-bit images 
+are supported. Multi-channel and RGB images should be split in individual images and then processed per channel.
+Furthermore, 3D image stacks and time-lapse data sets are processed slice-by-slice 2D.
+
+You find all implemented filters visualized in the [demo notebook](docs/demo.ipynb)
 
 ----------------------------------
 
 This [napari] plugin was generated with [Cookiecutter] using [@napari]'s [cookiecutter-napari-plugin] template.
-
-<!--
-Don't miss the full getting started guide to set up your new package:
-https://github.com/napari/cookiecutter-napari-plugin#getting-started
-
-and review the napari docs for plugin developers:
-https://napari.org/plugins/stable/index.html
--->
 
 ## Installation
 
@@ -43,6 +39,9 @@ the coverage at least stays the same before you submit a pull request.
 
 Distributed under the terms of the [BSD-3] license,
 "napari-pillow-image-processing" is free and open source software
+
+Some documentation snippets have been copied over from the [pillow documentation](https://pillow.readthedocs.io/).
+Hence, please respect the [pillow license](thirdparty_licenses.txt)
 
 ## Issues
 
